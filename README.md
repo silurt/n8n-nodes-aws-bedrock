@@ -52,7 +52,18 @@ knowledge base, and `bedrock:ApplyGuardrail` on the guardrail.
 
 ## Install
 
-On self-hosted n8n: **Settings > Community nodes > Install**, then
+**Not on npm yet.** It is published once it has made a successful call against a
+real AWS account; see Validating this below for what has and has not been exercised.
+Until then, install it from source:
+
+    git clone https://github.com/silurt/n8n-nodes-aws-bedrock
+    cd n8n-nodes-aws-bedrock && npm install && npm run build
+    mkdir -p ~/.n8n/custom && cd ~/.n8n/custom && npm init -y
+    npm install /path/to/n8n-nodes-aws-bedrock
+
+Restart n8n and the node appears as **AWS Bedrock**.
+
+Once it is on npm: **Settings > Community nodes > Install**, then
 `n8n-nodes-aws-bedrock`.
 
 ## Example workflow
