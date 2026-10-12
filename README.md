@@ -48,7 +48,16 @@ override never fires, since the override is checked before the name is normalise
 
 ## Install
 
-Not on npm yet. Until then:
+In n8n, **Settings > Community nodes > Install**, and enter:
+
+```
+@silurt/n8n-nodes-aws-bedrock
+```
+
+The node appears as **AWS Bedrock**.
+
+To build it from source instead, which registers it under the custom directory
+rather than under its package name:
 
 ```bash
 git clone https://github.com/silurt/n8n-nodes-aws-bedrock
@@ -58,7 +67,7 @@ mkdir -p ~/.n8n/custom && cd ~/.n8n/custom && npm init -y
 npm install /path/to/n8n-nodes-aws-bedrock
 ```
 
-Restart n8n and the node appears as **AWS Bedrock**.
+Restart n8n after either route.
 
 ## Example
 
