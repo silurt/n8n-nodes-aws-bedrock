@@ -30,7 +30,8 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "check:signing": "node test/sigv4-check.mjs"
   },
   "files": [
     "dist"

@@ -31,6 +31,13 @@ credential, so there is no AWS SDK in the package.
 Uses n8n's built-in **AWS** credential. The region comes from the credential and can
 be overridden per operation.
 
+For a VPC endpoint, a FIPS endpoint or a private gateway, use the credential's own
+**Bedrock endpoint** field rather than anything in this node. n8n swaps only the
+host there and keeps the signing service and region derived from the default
+endpoint, so an override cannot quietly change how a request is signed. This node
+had its own endpoint option for about an hour on 2026-10-12; it was removed once
+that field turned up, because two ways to do it is one too many.
+
 The IAM principal needs `bedrock:Retrieve` and `bedrock:RetrieveAndGenerate` on the
 knowledge base, and `bedrock:ApplyGuardrail` on the guardrail.
 
@@ -116,6 +123,13 @@ in Docker: the package loads from the custom extensions directory, the node
 registers, both operations render on the canvas with their subtitles, the example
 workflow saves, and attaching an AWS credential clears the node's unconfigured
 state.
+
+**2b. Signing, no account needed.** `npm run check:signing` borrows n8n's own AWS
+credential, signs the requests this node builds, then recomputes the SigV4
+signature from the test secret and compares. All three operations match, with scope
+`<date>/eu-central-1/bedrock/aws4_request` and the host n8n resolved the service
+from. This is how the request-shape bug below was found: it is a real signing path,
+not a stub.
 
 **3. A live call, which needs an account.** Nothing above proves AWS accepts the
 request. The cheapest honest proof is the guardrail path, because a guardrail costs

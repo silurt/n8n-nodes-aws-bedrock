@@ -58,10 +58,10 @@ test('Retrieve: POST /knowledgebases/{id}/retrieve on bedrock-agent-runtime', as
 
 	assert.equal(credentialType, 'aws', 'signs with n8n\'s built-in AWS credential')
 	assert.equal(request.method, 'POST')
-	assert.equal(
-		request.url,
-		'https://bedrock-agent-runtime.eu-central-1.amazonaws.com/knowledgebases/KB12345678/retrieve',
-	)
+	// baseURL and url stay separate: n8n's aws credential joins them and reads the
+	// signing service and region off the host.
+	assert.equal(request.baseURL, 'https://bedrock-agent-runtime.eu-central-1.amazonaws.com')
+	assert.equal(request.url, '/knowledgebases/KB12345678/retrieve')
 	// Required by the model: knowledgeBaseId (in the URI) and retrievalQuery.
 	assert.deepEqual(request.body.retrievalQuery, { text: 'what is the refund policy' })
 	assert.equal(request.body.retrievalConfiguration.vectorSearchConfiguration.numberOfResults, 5)
@@ -90,7 +90,8 @@ test('RetrieveAndGenerate: POST /retrieveAndGenerate with a KNOWLEDGE_BASE confi
 		options: { sessionId: 'sess-1' },
 	})
 
-	assert.equal(request.url, 'https://bedrock-agent-runtime.eu-central-1.amazonaws.com/retrieveAndGenerate')
+	assert.equal(request.baseURL, 'https://bedrock-agent-runtime.eu-central-1.amazonaws.com')
+	assert.equal(request.url, '/retrieveAndGenerate')
 	// Model: `input` is required and requires `text`; the config requires `type`,
 	// and KNOWLEDGE_BASE requires knowledgeBaseId and modelArn.
 	assert.deepEqual(request.body.input, { text: 'summarise the policy' })
@@ -114,10 +115,8 @@ test('ApplyGuardrail: POST /guardrail/{id}/version/{version}/apply on bedrock-ru
 		guardrailOptions: { outputScope: 'FULL' },
 	})
 
-	assert.equal(
-		request.url,
-		'https://bedrock-runtime.eu-central-1.amazonaws.com/guardrail/gr-abc123/version/DRAFT/apply',
-	)
+	assert.equal(request.baseURL, 'https://bedrock-runtime.eu-central-1.amazonaws.com')
+	assert.equal(request.url, '/guardrail/gr-abc123/version/DRAFT/apply')
 	// Model: source and content are required; a content block carries text.text.
 	assert.equal(request.body.source, 'OUTPUT')
 	assert.deepEqual(request.body.content, [{ text: { text: 'some generated answer' } }])
@@ -140,5 +139,5 @@ test('the per-operation region override beats the credential region', async () =
 		resource: 'knowledgeBase', operation: 'retrieve', knowledgeBaseId: 'KB1', query: 'q',
 		options: { region: 'us-east-1' },
 	}, { region: 'eu-central-1' })
-	assert.ok(request.url.startsWith('https://bedrock-agent-runtime.us-east-1.amazonaws.com/'))
+	assert.equal(request.baseURL, 'https://bedrock-agent-runtime.us-east-1.amazonaws.com')
 })

@@ -259,7 +259,8 @@ export class AwsBedrock implements INodeType {
 						if (options.userId) body.userContext = { userId: options.userId };
 						request = {
 							method: 'POST',
-							url: `${host}/knowledgebases/${knowledgeBaseId}/retrieve`,
+							baseURL: host,
+							url: `/knowledgebases/${knowledgeBaseId}/retrieve`,
 							body,
 							json: true,
 						};
@@ -275,7 +276,8 @@ export class AwsBedrock implements INodeType {
 						if (options.sessionId) body.sessionId = options.sessionId;
 						request = {
 							method: 'POST',
-							url: `${host}/retrieveAndGenerate`,
+							baseURL: host,
+							url: '/retrieveAndGenerate',
 							body,
 							json: true,
 						};
@@ -286,6 +288,7 @@ export class AwsBedrock implements INodeType {
 						region?: string;
 					};
 					const region = options.region || credentialRegion;
+					const host = `https://bedrock-runtime.${region}.amazonaws.com`;
 					const identifier = this.getNodeParameter('guardrailIdentifier', i) as string;
 					const version = this.getNodeParameter('guardrailVersion', i) as string;
 					const body: Record<string, unknown> = {
@@ -295,14 +298,19 @@ export class AwsBedrock implements INodeType {
 					if (options.outputScope) body.outputScope = options.outputScope;
 					request = {
 						method: 'POST',
-						url: `https://bedrock-runtime.${region}.amazonaws.com/guardrail/${identifier}/version/${version}/apply`,
+						baseURL: host,
+						url: `/guardrail/${identifier}/version/${version}/apply`,
 						body,
 						json: true,
 					};
 				}
 
 				// The `aws` credential signs this with SigV4, which is why the package
-				// needs no AWS SDK and no runtime dependencies.
+				// needs no AWS SDK and no runtime dependencies. It composes
+				// `baseURL + url` itself and reads the signing service and region off
+				// that host, mapping bedrock-runtime and bedrock-agent-runtime to the
+				// `bedrock` namespace, so the two must stay separate here. Passing one
+				// combined `url` leaves baseURL undefined and signs "null/...".
 				const response = await this.helpers.httpRequestWithAuthentication.call(this, 'aws', request);
 
 				out.push({ json: response as IDataObject, pairedItem: { item: i } });
