@@ -88,6 +88,45 @@ does not have:
 section above, exported from a running n8n. Import it with **Workflows > Import from
 file**.
 
+## Validating this
+
+Three levels, in order of what they cost and what they prove.
+
+**1. Request shapes, no account needed.** `npm test` builds each operation's
+request through the node and asserts the method, URI and body against AWS's own API
+model: the operation definitions in botocore's `service-2.json` for
+bedrock-agent-runtime 2023-07-26 and bedrock-runtime 2023-09-30. That is the
+machine-readable source the SDKs are generated from, so it checks the required
+members, the nesting and the enum values rather than someone's reading of a docs
+page. Six tests, no credentials, no network.
+
+What was checked against the model on 2026-10-12, and matched:
+
+| Operation | Method and URI | Required members |
+|---|---|---|
+| Retrieve | POST /knowledgebases/{knowledgeBaseId}/retrieve | knowledgeBaseId, retrievalQuery |
+| RetrieveAndGenerate | POST /retrieveAndGenerate | input (input.text) |
+| ApplyGuardrail | POST /guardrail/{guardrailIdentifier}/version/{guardrailVersion}/apply | guardrailIdentifier, guardrailVersion, source, content |
+
+Endpoint prefixes `bedrock-agent-runtime` and `bedrock-runtime`, protocol rest-json,
+and the enums `KNOWLEDGE_BASE`, `INPUT`/`OUTPUT`, `INTERVENTIONS`/`FULL` all match.
+
+**2. Loading and wiring, no account needed.** Done on 2026-10-12 against n8n 2.42.7
+in Docker: the package loads from the custom extensions directory, the node
+registers, both operations render on the canvas with their subtitles, the example
+workflow saves, and attaching an AWS credential clears the node's unconfigured
+state.
+
+**3. A live call, which needs an account.** Nothing above proves AWS accepts the
+request. The cheapest honest proof is the guardrail path, because a guardrail costs
+nothing to create and ApplyGuardrail costs a fraction of a cent per call, while a
+knowledge base needs a vector store behind it. Create a guardrail with one policy
+that fires, point the node at it with text that trips the policy, and check the
+response comes back with `action: GUARDRAIL_INTERVENED`. Then the knowledge base
+operations, if there is one to point at.
+
+Use a personal or sandbox AWS account for this, not a client's.
+
 ## Verification
 
 Submitting to the n8n Creator Portal requires no runtime dependencies (already the
