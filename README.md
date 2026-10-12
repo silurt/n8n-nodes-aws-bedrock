@@ -8,11 +8,10 @@ enterprise deployment reaches for. This node does both, with no runtime
 dependencies: requests are signed by n8n's own AWS credential, so there is no AWS
 SDK in the package.
 
-**Status: works, not published.** Everything except a live AWS call has been
-verified — request shapes against AWS's own API model, signing against n8n's real
-credential, and the wire against a server that recomputes the signature. See
-[Validating this](#validating-this). It goes on npm once it has made a successful
-call against a real account.
+**Status: verified against live AWS, 2026-10-12.** All three operations were
+accepted by Bedrock: signature, permission and body, with only the deliberately
+absent resource missing. Request shapes also check against AWS's own API model, and
+signing against n8n's real credential. See [Validating this](#validating-this).
 
 ## Operations
 
@@ -125,8 +124,13 @@ Authentication Token" from the live service, which is what an existing operation
 says when it wants auth. A deliberately wrong path answers `UnknownOperationException`
 instead, so the check discriminates.
 
-**A live call.** `npm run check:live` aims every operation at a resource that does
-not exist. AWS checks signature, then permission, then body, and only then looks the
+**A live call.** Run on 2026-10-12 against a real account, all three accepted:
+
+    ApplyGuardrail       PASS   AWS said: The guardrail identifier or version provided in the request does not exist.
+    Retrieve             PASS   AWS said: Knowledge Base with id AAAAAAAAAA does not exist
+    RetrieveAndGenerate  PASS   AWS said: Knowledge Base with id AAAAAAAAAA does not exist
+
+`npm run check:live` aims every operation at a resource that does not exist. AWS checks signature, then permission, then body, and only then looks the
 resource up, so `ResourceNotFoundException` means everything this package controls
 was accepted. Nothing is evaluated, so nothing is billed, and no Bedrock resource
 has to exist. The IAM user needs `bedrock:ApplyGuardrail` and `bedrock:Retrieve` on
@@ -135,7 +139,8 @@ has to exist. The IAM user needs `bedrock:ApplyGuardrail` and `bedrock:Retrieve`
 | Response | Means |
 | --- | --- |
 | ResourceNotFoundException | signature, permission and body all accepted |
-| ValidationException | signature and permission fine, the body is wrong |
+| ValidationException saying the resource does not exist | the same news; Bedrock answers a missing guardrail this way |
+| ValidationException saying anything else | signature and permission fine, the body is wrong |
 | AccessDeniedException | signature fine, the IAM policy is missing the action |
 | InvalidSignatureException | signing is wrong |
 | UnrecognizedClientException | the access key is not valid |

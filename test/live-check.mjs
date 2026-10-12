@@ -50,6 +50,12 @@ const CASES = [
 	['RetrieveAndGenerate', { resource: 'knowledgeBase', operation: 'retrieveAndGenerate', knowledgeBaseId: 'AAAAAAAAAA', query: 'hello', modelArn: `arn:aws:bedrock:${creds.region}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0`, options: {} }],
 ]
 
+// Bedrock does not answer a missing guardrail with ResourceNotFoundException. It
+// answers ValidationException with "The guardrail identifier or version provided in
+// the request does not exist", which is the same news: everything we control was
+// accepted and only the resource is absent. So the message decides, not the type.
+const MISSING_RESOURCE = /does not exist|not found|could not be found/i
+
 const VERDICTS = {
 	ResourceNotFoundException: 'PASS   signature, permission and body all accepted',
 	ValidationException: 'FAIL   our request body is wrong',
@@ -84,9 +90,15 @@ for (const [name, params] of CASES) {
 	const text = await res.text()
 	let errName = res.headers.get('x-amzn-errortype')?.split(':')[0] ?? ''
 	if (!errName) { try { errName = JSON.parse(text).__type?.split('#').pop() ?? JSON.parse(text).message ?? '' } catch {} }
-	const verdict = VERDICTS[errName] ?? `UNKNOWN  HTTP ${res.status} ${errName || text.slice(0, 80)}`
+	let message = ''
+	try { message = JSON.parse(text).message ?? '' } catch {}
+	let verdict = VERDICTS[errName] ?? `UNKNOWN  HTTP ${res.status} ${errName || text.slice(0, 80)}`
+	if (errName === 'ValidationException' && MISSING_RESOURCE.test(message)) {
+		verdict = 'PASS   signature, permission and body all accepted'
+	}
 	if (verdict.startsWith('FAIL')) failed = true
 	console.log(`${name.padEnd(20)} ${errName.padEnd(28)} ${verdict}`)
+	if (message) console.log(`${' '.repeat(20)} AWS said: ${message}`)
 }
 
 process.exitCode = failed ? 1 : 0
