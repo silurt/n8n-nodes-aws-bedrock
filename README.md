@@ -143,6 +143,21 @@ signature from the test secret and compares. All three operations match, with sc
 from. This is how the request-shape bug below was found: it is a real signing path,
 not a stub.
 
+**2c. What goes on the wire is what was signed, free and offline.**
+`npm run check:wire` starts a local server that speaks HTTPS under the real Bedrock
+hostnames, sends each signed request to it with a real HTTP client, and recomputes
+the SigV4 signature from the bytes that arrive. On 2026-10-12 all three arrived
+`sigv4=VALID service=bedrock region=eu-central-1`, and the node parsed the canned
+responses. This is the check that an offline signature test cannot give you: it
+compares what was signed against what was sent.
+
+It uses a self-signed certificate, which the check accepts for localhost only.
+Regenerate it with:
+
+    openssl req -x509 -newkey rsa:2048 -nodes -keyout test/wire/key.pem \
+      -out test/wire/cert.pem -days 2 \
+      -subj "/CN=bedrock-runtime.eu-central-1.amazonaws.com"
+
 **3a. The routes, free and with no account at all.** Probed on 2026-10-12: all three
 URIs answer 403 "Missing Authentication Token" from the live service, which is what
 an existing operation says when it wants auth. A deliberately wrong path answers

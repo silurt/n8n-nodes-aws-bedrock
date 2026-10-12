@@ -32,7 +32,8 @@
     "test": "node --test test/*.test.mjs",
     "check:signing": "node test/sigv4-check.mjs",
     "pretest": "npm run build",
-    "check:live": "node test/live-check.mjs"
+    "check:live": "node test/live-check.mjs",
+    "check:wire": "node test/wire/mock-bedrock.mjs & sleep 1; node test/wire/wire-check.mjs; kill %1"
   },
   "files": [
     "dist"

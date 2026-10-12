@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 .DS_Store
+
+# self-signed certs for the local wire check, regenerate with the command in the README
+test/wire/*.pem
+test/wire/requests.json
