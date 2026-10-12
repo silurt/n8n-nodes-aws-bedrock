@@ -143,7 +143,30 @@ signature from the test secret and compares. All three operations match, with sc
 from. This is how the request-shape bug below was found: it is a real signing path,
 not a stub.
 
-**3. A live call, which needs an account.** Nothing above proves AWS accepts the
+**3a. The routes, free and with no account at all.** Probed on 2026-10-12: all three
+URIs answer 403 "Missing Authentication Token" from the live service, which is what
+an existing operation says when it wants auth. A deliberately wrong path answers
+`UnknownOperationException` instead, so the check discriminates.
+
+**3b. Signature, permission and body, free, on any account you already have.**
+`npm run check:live` aims every operation at a resource that does not exist. AWS
+checks the signature, then the permission, then the body, and only then looks the
+resource up, so `ResourceNotFoundException` means everything this package controls
+was accepted. Nothing is evaluated, so nothing is billed: no guardrail runs, no
+model is invoked, no knowledge base is queried, and no Bedrock resource has to
+exist. The IAM user needs `bedrock:ApplyGuardrail` and `bedrock:Retrieve` on `*`.
+
+The error name is the whole result:
+
+| Response | Means |
+|---|---|
+| ResourceNotFoundException | signature, permission and body all accepted |
+| ValidationException | signature and permission fine, the body is wrong |
+| AccessDeniedException | signature fine, the IAM policy is missing the action |
+| InvalidSignatureException | signing is wrong |
+| UnrecognizedClientException | the access key is not valid |
+
+**3c. A real evaluation, which costs money.** Nothing above proves AWS accepts the
 request. The cheapest honest proof is the guardrail path, because a guardrail costs
 nothing to create and ApplyGuardrail costs a fraction of a cent per call, while a
 knowledge base needs a vector store behind it. Create a guardrail with one policy

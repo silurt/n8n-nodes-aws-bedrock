@@ -31,7 +31,8 @@
     "prepublishOnly": "npm run build",
     "test": "node --test test/*.test.mjs",
     "check:signing": "node test/sigv4-check.mjs",
-    "pretest": "npm run build"
+    "pretest": "npm run build",
+    "check:live": "node test/live-check.mjs"
   },
   "files": [
     "dist"
