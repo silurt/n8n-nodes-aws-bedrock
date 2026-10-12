@@ -1,5 +1,5 @@
 {
-  "name": "n8n-nodes-aws-bedrock",
+  "name": "@silurt/n8n-nodes-aws-bedrock",
   "version": "0.1.0",
   "description": "n8n node for Amazon Bedrock knowledge bases and guardrails: retrieve, retrieve-and-generate, and apply guardrail.",
   "keywords": [

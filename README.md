@@ -1,4 +1,4 @@
-# n8n-nodes-aws-bedrock
+# @silurt/n8n-nodes-aws-bedrock
 
 An n8n node for the parts of Amazon Bedrock that n8n does not ship.
 
@@ -69,7 +69,7 @@ to the customer when it did not. Both ends are No-Op nodes, so swap in Gmail, Sl
 or whatever you actually send with.
 
 Import it with **Workflows > Import from file**. It names the node
-`n8n-nodes-aws-bedrock.awsBedrock`, which is right for an installed package; a
+`@silurt/n8n-nodes-aws-bedrock.awsBedrock`, which is right for an installed package; a
 custom-directory install registers it as `CUSTOM.awsBedrock` and the import will
 show unknown nodes until you install the package properly.
 

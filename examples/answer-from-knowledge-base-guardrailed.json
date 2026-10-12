@@ -39,7 +39,7 @@
     {
       "id": "a3",
       "name": "Answer from knowledge base",
-      "type": "n8n-nodes-aws-bedrock.awsBedrock",
+      "type": "@silurt/n8n-nodes-aws-bedrock.awsBedrock",
       "typeVersion": 1,
       "position": [
         260,
@@ -57,7 +57,7 @@
     {
       "id": "a4",
       "name": "Check answer against guardrail",
-      "type": "n8n-nodes-aws-bedrock.awsBedrock",
+      "type": "@silurt/n8n-nodes-aws-bedrock.awsBedrock",
       "typeVersion": 1,
       "position": [
         480,
