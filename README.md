@@ -64,13 +64,29 @@ Restart n8n and the node appears in the canvas.
 ## Status
 
 Version 0.1.0. The API shapes follow the Bedrock Agent Runtime and Bedrock Runtime
-API references. Before publishing, verify against a real account:
+API references.
 
-1. That a community node can use the built-in `aws` credential by name. If n8n
-   rejects it, the fallback is a credential type in this package that signs SigV4
-   itself, which is about a hundred lines and still no dependencies.
-2. `Retrieve` and `RetrieveAndGenerate` against a knowledge base in your region.
-3. `ApplyGuardrail` against a guardrail with at least one policy that fires.
+Checked on 2026-10-12 against n8n 2.42.7 running in Docker:
+
+- The package loads from the custom extensions directory and the node registers as
+  `CUSTOM.awsBedrock` alongside n8n's 997 built-in types.
+- **A community node can use the built-in `aws` credential by name.** Attaching an
+  AWS credential to the node clears its "credentials not set" state, so the fallback
+  of shipping a SigV4 credential type in this package is not needed.
+- Both operations render on the canvas with their subtitles, and the example
+  workflow in `examples/` builds and saves.
+
+Still to verify against a real AWS account, which needs credentials this machine
+does not have:
+
+1. `Retrieve` and `RetrieveAndGenerate` against a knowledge base in your region.
+2. `ApplyGuardrail` against a guardrail with at least one policy that fires.
+
+## Example
+
+`examples/answer-from-knowledge-base-guardrailed.json` is the workflow from the
+section above, exported from a running n8n. Import it with **Workflows > Import from
+file**.
 
 ## Verification
 
