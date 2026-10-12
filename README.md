@@ -34,9 +34,7 @@ be overridden per operation.
 For a VPC endpoint, a FIPS endpoint or a private gateway, use the credential's own
 **Bedrock endpoint** field rather than anything in this node. n8n swaps only the
 host there and keeps the signing service and region derived from the default
-endpoint, so an override cannot quietly change how a request is signed. This node
-had its own endpoint option for about an hour on 2026-10-12; it was removed once
-that field turned up, because two ways to do it is one too many.
+endpoint, so an override cannot quietly change how a request is signed.
 
 The IAM principal needs `bedrock:Retrieve` and `bedrock:RetrieveAndGenerate` on the
 knowledge base, and `bedrock:ApplyGuardrail` on the guardrail.
@@ -77,9 +75,9 @@ Checked on 2026-10-12 against n8n 2.42.7 running in Docker:
 
 - The package loads from the custom extensions directory and the node registers as
   `CUSTOM.awsBedrock` alongside n8n's 997 built-in types.
-- **A community node can use the built-in `aws` credential by name.** Attaching an
-  AWS credential to the node clears its "credentials not set" state, so the fallback
-  of shipping a SigV4 credential type in this package is not needed.
+- A community node can use the built-in `aws` credential by name. Attaching an AWS
+  credential to the node clears its "credentials not set" state, so the fallback of
+  shipping a SigV4 credential type in this package is not needed.
 - Both operations render on the canvas with their subtitles, and the example
   workflow in `examples/` builds and saves.
 
