@@ -33,6 +33,10 @@ const creds = {
 	region: process.env.AWS_REGION ?? 'eu-central-1',
 	accessKeyId: process.env.AWS_ACCESS_KEY_ID,
 	secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+	// SSO and assumed roles hand out a session token alongside the key pair.
+	...(process.env.AWS_SESSION_TOKEN
+		? { temporaryCredentials: true, sessionToken: process.env.AWS_SESSION_TOKEN }
+		: {}),
 }
 if (!creds.accessKeyId || !creds.secretAccessKey) {
 	console.log('skipped: set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY')
