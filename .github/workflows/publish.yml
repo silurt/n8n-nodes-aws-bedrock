@@ -1,0 +1,29 @@
+# Publishes to npm with a provenance statement. n8n requires this for nodes
+# submitted to the Creator Portal from 1 May 2026; it is optional for a node
+# that only ever gets installed on self-hosted n8n.
+#
+# Needs an NPM_TOKEN secret (automation token) on the repository.
+name: publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for npm provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npm run build
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,51 @@
+{
+  "name": "n8n-nodes-aws-bedrock",
+  "version": "0.1.0",
+  "description": "n8n node for Amazon Bedrock knowledge bases and guardrails: retrieve, retrieve-and-generate, and apply guardrail.",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "aws",
+    "bedrock",
+    "knowledge-base",
+    "rag",
+    "guardrails"
+  ],
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/silurt/n8n-nodes-aws-bedrock",
+  "author": {
+    "name": "Simon Rothert",
+    "email": "puresamari@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silurt/n8n-nodes-aws-bedrock.git"
+  },
+  "engines": {
+    "node": ">=20.15"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/AwsBedrock/AwsBedrock.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "n8n-workflow": "*",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}
