@@ -14,11 +14,17 @@ credential, so there is no AWS SDK in the package.
 **Knowledge Base**
 
 - *Retrieve*: query a Bedrock knowledge base and return the matching passages, with
-  no model involved. Options: number of results, and a user ID passed as
-  `userContext.userId` so Bedrock filters results to documents that user is allowed
-  to see.
+  no model involved. Options: number of results (1 to 100), a metadata filter as
+  JSON, a page token, and a user ID passed as `userContext.userId` so Bedrock
+  filters results to documents that user is allowed to see.
 - *Retrieve and Generate*: retrieve passages and have a model answer from them.
-  Takes a model ARN, and an optional session ID to continue a conversation.
+  Takes a model ARN, and optionally a session ID, the same metadata filter and
+  result count, and the same user ID.
+
+Not in 0.1.0, and each is a small addition when someone needs it: automatic
+pagination (pass `nextToken` yourself for now), `generationConfiguration` for prompt
+templates and inference settings, guardrail `qualifiers` for contextual grounding
+checks, and `externalSourcesConfiguration`.
 
 **Guardrail**
 
@@ -32,9 +38,14 @@ Uses n8n's built-in **AWS** credential. The region comes from the credential and
 be overridden per operation.
 
 For a VPC endpoint, a FIPS endpoint or a private gateway, use the credential's own
-**Bedrock endpoint** field rather than anything in this node. n8n swaps only the
-host there and keeps the signing service and region derived from the default
-endpoint, so an override cannot quietly change how a request is signed.
+**Bedrock endpoint** field. n8n swaps only the host and keeps the signing scope, so
+an override cannot quietly change how a request is signed.
+
+This works because each request pins `service: 'bedrock'`. Without that, n8n reads
+the service off the host, gets `bedrock-agent-runtime`, and its endpoint override
+never fires, since the override is checked before the name is normalised. Verified
+both ways on 2026-10-12: with the field set, the host becomes the VPC endpoint and
+the scope stays `eu-central-1/bedrock`.
 
 The IAM principal needs `bedrock:Retrieve` and `bedrock:RetrieveAndGenerate` on the
 knowledge base, and `bedrock:ApplyGuardrail` on the guardrail.
@@ -46,15 +57,20 @@ On self-hosted n8n: **Settings > Community nodes > Install**, then
 
 ## Example workflow
 
-A support mailbox answered from internal documentation, with a compliance check
-before anything is sent:
+`examples/answer-from-knowledge-base-guardrailed.json`, which ships in this repo:
 
-1. **Gmail Trigger** on a shared mailbox.
-2. **AWS Bedrock**, Knowledge Base, *Retrieve and Generate*, with the question from
-   the email body.
-3. **AWS Bedrock**, Guardrail, *Apply*, source OUTPUT, on the generated answer.
-4. **IF** on `action` being `GUARDRAIL_INTERVENED`: send the answer, or route it to a
-   human.
+1. **Manual trigger**, so you can run it while you are setting it up.
+2. **Set**, holding the customer question.
+3. **AWS Bedrock**, Knowledge Base, *Retrieve and Generate*.
+4. **AWS Bedrock**, Guardrail, *Apply*, source OUTPUT, on the generated answer.
+5. **IF** on `action` being `GUARDRAIL_INTERVENED`. The true branch goes to a human,
+   the false branch replies to the customer. Both ends are No-Op nodes, so swap in
+   Gmail, Slack or whatever you actually send with.
+
+Import it with **Workflows > Import from file**. It references the node as
+`n8n-nodes-aws-bedrock.awsBedrock`, which is right for an installed package. A
+custom-directory install registers the node as `CUSTOM.awsBedrock` instead, and the
+import will show unknown nodes until you install the package properly.
 
 ## Development
 
@@ -78,7 +94,7 @@ Checked on 2026-10-12 against n8n 2.42.7 running in Docker:
 - A community node can use the built-in `aws` credential by name. Attaching an AWS
   credential to the node clears its "credentials not set" state, so the fallback of
   shipping a SigV4 credential type in this package is not needed.
-- Both operations render on the canvas with their subtitles, and the example
+- All three operations render on the canvas with their subtitles, and the example
   workflow in `examples/` builds and saves.
 
 Still to verify against a real AWS account, which needs credentials this machine
@@ -89,9 +105,7 @@ does not have:
 
 ## Example
 
-`examples/answer-from-knowledge-base-guardrailed.json` is the workflow from the
-section above, exported from a running n8n. Import it with **Workflows > Import from
-file**.
+The example workflow was exported from a running n8n, not written by hand.
 
 ## Validating this
 

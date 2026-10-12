@@ -134,6 +134,51 @@ test('enum values match the API model', async () => {
 	}
 })
 
+test('every request pins the signing service to bedrock', async () => {
+	const cases = [
+		{ resource: 'knowledgeBase', operation: 'retrieve', knowledgeBaseId: 'KB1', query: 'q', options: {} },
+		{ resource: 'knowledgeBase', operation: 'retrieveAndGenerate', knowledgeBaseId: 'KB1', query: 'q', modelArn: 'arn:x', options: {} },
+		{ resource: 'guardrail', operation: 'apply', guardrailIdentifier: 'g', guardrailVersion: '1', text: 't', source: 'INPUT', guardrailOptions: {} },
+	]
+	for (const params of cases) {
+		const { request } = await run(params)
+		// bedrock-agent-runtime and bedrock-runtime both sign under `bedrock`, and
+		// pinning it here is also what switches on the credential's Bedrock endpoint
+		// override for VPC and FIPS endpoints.
+		assert.equal(request.qs.service, 'bedrock')
+	}
+})
+
+test('RetrieveAndGenerate carries userContext and the retrieval configuration too', async () => {
+	const { request } = await run({
+		resource: 'knowledgeBase',
+		operation: 'retrieveAndGenerate',
+		knowledgeBaseId: 'KB1',
+		query: 'q',
+		modelArn: 'arn:x',
+		options: { userId: 'user-7', numberOfResults: 9 },
+	})
+	// The API model allows userContext on this operation, and the retrieval
+	// configuration moves inside knowledgeBaseConfiguration.
+	assert.deepEqual(request.body.userContext, { userId: 'user-7' })
+	assert.equal(
+		request.body.retrieveAndGenerateConfiguration.knowledgeBaseConfiguration
+			.retrievalConfiguration.vectorSearchConfiguration.numberOfResults,
+		9,
+	)
+})
+
+test('a metadata filter and a page token pass through on Retrieve', async () => {
+	const { request } = await run({
+		resource: 'knowledgeBase', operation: 'retrieve', knowledgeBaseId: 'KB1', query: 'q',
+		options: { filter: '{"equals":{"key":"tenant","value":"acme"}}', nextToken: 'tok-1' },
+	})
+	assert.deepEqual(request.body.retrievalConfiguration.vectorSearchConfiguration.filter, {
+		equals: { key: 'tenant', value: 'acme' },
+	})
+	assert.equal(request.body.nextToken, 'tok-1')
+})
+
 test('the per-operation region override beats the credential region', async () => {
 	const { request } = await run({
 		resource: 'knowledgeBase', operation: 'retrieve', knowledgeBaseId: 'KB1', query: 'q',

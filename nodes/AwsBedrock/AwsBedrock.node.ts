@@ -1,5 +1,6 @@
 import type {
 	IDataObject,
+	JsonObject,
 	IExecuteFunctions,
 	IHttpRequestOptions,
 	INodeExecutionData,
@@ -8,7 +9,7 @@ import type {
 } from 'n8n-workflow';
 // `NodeConnectionTypes` is the value; `NodeConnectionType` is type-only in
 // n8n-workflow 2.x, which is why importing it as a value fails to compile.
-import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes, jsonParse } from 'n8n-workflow';
 
 /**
  * Amazon Bedrock, the parts n8n does not ship.
@@ -125,8 +126,8 @@ export class AwsBedrock implements INodeType {
 						name: 'numberOfResults',
 						type: 'number',
 						default: 5,
-						description: 'How many passages to retrieve',
-						displayOptions: { show: { '/operation': ['retrieve'] } },
+						typeOptions: { minValue: 1, maxValue: 100 },
+						description: 'How many passages to retrieve. The API allows 1 to 100.',
 					},
 					{
 						displayName: 'User ID',
@@ -135,6 +136,22 @@ export class AwsBedrock implements INodeType {
 						default: '',
 						description:
 							'Passed as userContext.userId, so Bedrock filters results to documents this user may see',
+					},
+					{
+						displayName: 'Metadata Filter (JSON)',
+						name: 'filter',
+						type: 'json',
+						default: '',
+						placeholder: '{ "equals": { "key": "tenant", "value": "acme" } }',
+						description:
+							'A retrieval filter, passed through as vectorSearchConfiguration.filter',
+					},
+					{
+						displayName: 'Next Token',
+						name: 'nextToken',
+						type: 'string',
+						default: '',
+						description: 'Page token from a previous Retrieve response',
 						displayOptions: { show: { '/operation': ['retrieve'] } },
 					},
 					{
@@ -243,41 +260,58 @@ export class AwsBedrock implements INodeType {
 						userId?: string;
 						sessionId?: string;
 						region?: string;
+						filter?: string;
+						nextToken?: string;
 					};
+					const filter = options.filter ? (jsonParse(options.filter) as IDataObject) : undefined;
 					const region = options.region || credentialRegion;
 					const host = `https://bedrock-agent-runtime.${region}.amazonaws.com`;
 					const knowledgeBaseId = this.getNodeParameter('knowledgeBaseId', i) as string;
 					const query = this.getNodeParameter('query', i) as string;
 
+					// Shared by both knowledge base operations: on Retrieve it is the top-level
+					// retrievalConfiguration, on RetrieveAndGenerate it sits inside
+					// knowledgeBaseConfiguration. The members are the same either way.
+					const vectorSearch: IDataObject = {};
+					if (options.numberOfResults) vectorSearch.numberOfResults = options.numberOfResults;
+					if (filter) vectorSearch.filter = filter;
+					const retrievalConfiguration = Object.keys(vectorSearch).length
+						? { vectorSearchConfiguration: vectorSearch }
+						: undefined;
+
 					if (operation === 'retrieve') {
 						const body: Record<string, unknown> = { retrievalQuery: { text: query } };
-						if (options.numberOfResults) {
-							body.retrievalConfiguration = {
-								vectorSearchConfiguration: { numberOfResults: options.numberOfResults },
-							};
-						}
+						if (retrievalConfiguration) body.retrievalConfiguration = retrievalConfiguration;
+						if (options.nextToken) body.nextToken = options.nextToken;
 						if (options.userId) body.userContext = { userId: options.userId };
 						request = {
 							method: 'POST',
 							baseURL: host,
 							url: `/knowledgebases/${knowledgeBaseId}/retrieve`,
+							qs: { service: 'bedrock' },
 							body,
 							json: true,
 						};
 					} else {
 						const modelArn = this.getNodeParameter('modelArn', i) as string;
+						const knowledgeBaseConfiguration: IDataObject = { knowledgeBaseId, modelArn };
+						if (retrievalConfiguration) {
+							knowledgeBaseConfiguration.retrievalConfiguration = retrievalConfiguration;
+						}
 						const body: Record<string, unknown> = {
 							input: { text: query },
 							retrieveAndGenerateConfiguration: {
 								type: 'KNOWLEDGE_BASE',
-								knowledgeBaseConfiguration: { knowledgeBaseId, modelArn },
+								knowledgeBaseConfiguration,
 							},
 						};
 						if (options.sessionId) body.sessionId = options.sessionId;
+						if (options.userId) body.userContext = { userId: options.userId };
 						request = {
 							method: 'POST',
 							baseURL: host,
 							url: '/retrieveAndGenerate',
+							qs: { service: 'bedrock' },
 							body,
 							json: true,
 						};
@@ -300,6 +334,7 @@ export class AwsBedrock implements INodeType {
 						method: 'POST',
 						baseURL: host,
 						url: `/guardrail/${identifier}/version/${version}/apply`,
+						qs: { service: 'bedrock' },
 						body,
 						json: true,
 					};
@@ -313,13 +348,26 @@ export class AwsBedrock implements INodeType {
 				// combined `url` leaves baseURL undefined and signs "null/...".
 				const response = await this.helpers.httpRequestWithAuthentication.call(this, 'aws', request);
 
-				out.push({ json: response as IDataObject, pairedItem: { item: i } });
+				// Every one of these operations answers with a JSON object, but a proxy or a
+				// future error path can return a string, and a bare string is not a valid item.
+				const json =
+					response !== null && typeof response === 'object' && !Array.isArray(response)
+						? (response as IDataObject)
+						: ({ data: response } as IDataObject);
+				out.push({ json, pairedItem: { item: i } });
 			} catch (error) {
+				// NodeApiError, not NodeOperationError: AWS puts ValidationException and
+				// AccessDeniedException text in the response body, and an axios error's
+				// own message is only "Request failed with status code 400".
+				const apiError = new NodeApiError(this.getNode(), error as JsonObject, { itemIndex: i });
 				if (this.continueOnFail()) {
-					out.push({ json: { error: (error as Error).message }, pairedItem: { item: i } });
+					out.push({
+						json: { error: apiError.description ?? apiError.message },
+						pairedItem: { item: i },
+					});
 					continue;
 				}
-				throw new NodeOperationError(this.getNode(), error as Error, { itemIndex: i });
+				throw apiError;
 			}
 		}
 

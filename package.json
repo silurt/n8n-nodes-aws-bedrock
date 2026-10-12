@@ -24,14 +24,14 @@
   "engines": {
     "node": ">=20.15"
   },
-  "main": "index.js",
   "scripts": {
     "build": "tsc && node scripts/copy-assets.mjs",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build",
     "test": "node --test test/*.test.mjs",
-    "check:signing": "node test/sigv4-check.mjs"
+    "check:signing": "node test/sigv4-check.mjs",
+    "pretest": "npm run build"
   },
   "files": [
     "dist"
@@ -44,10 +44,10 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "n8n-workflow": "*",
+    "n8n-workflow": "^2",
     "typescript": "^5.7.0"
   },
   "peerDependencies": {
-    "n8n-workflow": "*"
+    "n8n-workflow": "^2"
   }
 }
