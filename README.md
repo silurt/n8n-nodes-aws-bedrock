@@ -8,6 +8,11 @@ enterprise deployment reaches for. This node does both, with no runtime
 dependencies: requests are signed by n8n's own AWS credential, so there is no AWS
 SDK in the package.
 
+That is the point rather than a nice property. A regulated client may be required to
+self-host its whole library stack and have the sublibraries audited on a schedule, in
+which case every transitive dependency is recurring work for somebody. A node with
+none is cheaper to adopt there than a node with a convenient SDK inside it.
+
 **Status: verified against live AWS, 2026-10-12.** All three operations were
 accepted by Bedrock: signature, permission and body, with only the deliberately
 absent resource missing. Request shapes also check against AWS's own API model, and
