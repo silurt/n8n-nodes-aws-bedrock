@@ -186,3 +186,100 @@ test('the per-operation region override beats the credential region', async () =
 	}, { region: 'eu-central-1' })
 	assert.equal(request.baseURL, 'https://bedrock-agent-runtime.us-east-1.amazonaws.com')
 })
+
+/**
+ * Contextual grounding, added in 0.2.0.
+ *
+ * Bedrock only runs that policy when it can tell the grounding source and the
+ * query apart from the text being judged, which it does by the `qualifiers`
+ * array on each content block. A request without qualifiers is not a slightly
+ * worse grounding check, it is no grounding check at all, so these assert the
+ * labels and their order rather than just that the fields were passed through.
+ */
+test('ApplyGuardrail: a grounding source and query become labelled content blocks', async () => {
+	const { request } = await run({
+		resource: 'guardrail',
+		operation: 'apply',
+		guardrailIdentifier: 'gr-abc123',
+		guardrailVersion: 'DRAFT',
+		text: 'He led a team of forty engineers.',
+		source: 'OUTPUT',
+		groundingSource: 'Led a team of four developers across sprints.',
+		groundingQuery: 'What team did he lead?',
+		guardrailOptions: {},
+	})
+
+	// Model: GuardrailTextBlock carries text and an optional qualifiers list.
+	assert.deepEqual(request.body.content, [
+		{
+			text: {
+				text: 'Led a team of four developers across sprints.',
+				qualifiers: ['grounding_source'],
+			},
+		},
+		{ text: { text: 'What team did he lead?', qualifiers: ['query'] } },
+		{ text: { text: 'He led a team of forty engineers.', qualifiers: ['guard_content'] } },
+	])
+	assert.equal(request.body.source, 'OUTPUT')
+})
+
+test('ApplyGuardrail: a grounding source alone still labels both blocks', async () => {
+	const { request } = await run({
+		resource: 'guardrail',
+		operation: 'apply',
+		guardrailIdentifier: 'gr-abc123',
+		guardrailVersion: 'DRAFT',
+		text: 'claim under test',
+		source: 'OUTPUT',
+		groundingSource: 'the passages',
+		groundingQuery: '',
+		guardrailOptions: {},
+	})
+
+	assert.deepEqual(request.body.content, [
+		{ text: { text: 'the passages', qualifiers: ['grounding_source'] } },
+		{ text: { text: 'claim under test', qualifiers: ['guard_content'] } },
+	])
+})
+
+test('ApplyGuardrail: no grounding fields sends what every earlier version sent', async () => {
+	// 0.1.0 compatibility. An existing workflow must not change shape on upgrade.
+	const { request } = await run({
+		resource: 'guardrail',
+		operation: 'apply',
+		guardrailIdentifier: 'gr-abc123',
+		guardrailVersion: 'DRAFT',
+		text: 'some generated answer',
+		source: 'INPUT',
+		groundingSource: '',
+		groundingQuery: '',
+		guardrailOptions: {},
+	})
+
+	assert.deepEqual(request.body.content, [{ text: { text: 'some generated answer' } }])
+	for (const block of request.body.content) {
+		assert.ok(!('qualifiers' in block.text), 'an unlabelled request must stay unlabelled')
+	}
+})
+
+test('qualifier values match the API model', async () => {
+	// Model: GuardrailContentQualifier enum is grounding_source | query | guard_content.
+	const { request } = await run({
+		resource: 'guardrail',
+		operation: 'apply',
+		guardrailIdentifier: 'gr-abc123',
+		guardrailVersion: 'DRAFT',
+		text: 'x',
+		source: 'OUTPUT',
+		groundingSource: 'y',
+		groundingQuery: 'z',
+		guardrailOptions: {},
+	})
+
+	const ALLOWED = new Set(['grounding_source', 'query', 'guard_content'])
+	for (const block of request.body.content) {
+		for (const q of block.text.qualifiers ?? []) {
+			assert.ok(ALLOWED.has(q), `"${q}" is not a GuardrailContentQualifier`)
+		}
+	}
+})

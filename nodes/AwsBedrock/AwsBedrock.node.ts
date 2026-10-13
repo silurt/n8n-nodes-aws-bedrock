@@ -209,6 +209,36 @@ export class AwsBedrock implements INodeType {
 				],
 				displayOptions: { show: { resource: ['guardrail'] } },
 			},
+			/**
+			 * Contextual grounding needs the content split into labelled parts: the
+			 * passages to check against, the question that was asked, and the text to
+			 * judge. Without those labels Bedrock treats everything as text to judge,
+			 * so the contextual grounding policy has nothing to ground against and
+			 * never fires, whatever the guardrail is configured with.
+			 *
+			 * Both fields are optional and only shown for OUTPUT, because the policy
+			 * does not apply to input. Leave them empty and the request keeps its
+			 * previous single unlabelled block.
+			 */
+			{
+				displayName: 'Grounding Source',
+				name: 'groundingSource',
+				type: 'string',
+				default: '',
+				typeOptions: { rows: 3 },
+				description:
+					'The passages the text must be supported by, for a contextual grounding check. Required for that policy to fire; leave empty for the other policies.',
+				displayOptions: { show: { resource: ['guardrail'], source: ['OUTPUT'] } },
+			},
+			{
+				displayName: 'Grounding Query',
+				name: 'groundingQuery',
+				type: 'string',
+				default: '',
+				description:
+					'The question the text is answering. Used by the relevance half of a contextual grounding check.',
+				displayOptions: { show: { resource: ['guardrail'], source: ['OUTPUT'] } },
+			},
 			{
 				displayName: 'Guardrail Options',
 				name: 'guardrailOptions',
@@ -325,10 +355,32 @@ export class AwsBedrock implements INodeType {
 					const host = `https://bedrock-runtime.${region}.amazonaws.com`;
 					const identifier = this.getNodeParameter('guardrailIdentifier', i) as string;
 					const version = this.getNodeParameter('guardrailVersion', i) as string;
-					const body: Record<string, unknown> = {
-						source: this.getNodeParameter('source', i) as string,
-						content: [{ text: { text: this.getNodeParameter('text', i) as string } }],
-					};
+					const source = this.getNodeParameter('source', i) as string;
+					const text = this.getNodeParameter('text', i) as string;
+					const groundingSource = this.getNodeParameter('groundingSource', i, '') as string;
+					const groundingQuery = this.getNodeParameter('groundingQuery', i, '') as string;
+
+					/**
+					 * A qualifier labels what a block is for. Bedrock only runs the
+					 * contextual grounding policy when it can tell the grounding source
+					 * and the query apart from the text being judged, so the blocks are
+					 * labelled as soon as either is supplied and left unlabelled
+					 * otherwise, which is what every earlier version sent.
+					 */
+					const content: Array<Record<string, unknown>> =
+						groundingSource || groundingQuery
+							? [
+									...(groundingSource
+										? [{ text: { text: groundingSource, qualifiers: ['grounding_source'] } }]
+										: []),
+									...(groundingQuery
+										? [{ text: { text: groundingQuery, qualifiers: ['query'] } }]
+										: []),
+									{ text: { text, qualifiers: ['guard_content'] } },
+								]
+							: [{ text: { text } }];
+
+					const body: Record<string, unknown> = { source, content };
 					if (options.outputScope) body.outputScope = options.outputScope;
 					request = {
 						method: 'POST',

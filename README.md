@@ -26,10 +26,20 @@ optionally a session ID, the same filter and result count, and the same user ID.
 Choose whether the text is model input or model output, and set the output scope to
 FULL to see what was checked and not flagged.
 
-Not in 0.1.0, each a small addition when someone needs it: automatic pagination
+For a **contextual grounding** check, also fill in *Grounding Source* with the
+passages the text must be supported by, and optionally *Grounding Query* with the
+question it answers. Both appear only for OUTPUT, because the policy does not apply
+to input.
+
+This matters more than an optional field usually does. Bedrock decides which policy
+to run from the `qualifiers` on each content block, so a request that sends the text
+unlabelled gets no grounding check at all rather than a weaker one, however the
+guardrail itself is configured. Leave both fields empty and the request keeps the
+single unlabelled block that 0.1.0 sent, which is asserted by a test.
+
+Not in 0.2.0, each a small addition when someone needs it: automatic pagination
 (pass `nextToken` yourself for now), `generationConfiguration` for prompt templates
-and inference settings, guardrail `qualifiers` for contextual grounding checks, and
-`externalSourcesConfiguration`.
+and inference settings, and `externalSourcesConfiguration`.
 
 ## Credentials
 
@@ -93,7 +103,7 @@ Four levels, by what they cost and what they prove.
 | `npm run check:wire` | nothing | what goes on the wire is what was signed |
 | `npm run check:live` | any AWS credentials | AWS itself accepts signature, permission and body |
 
-**Request shapes.** The nine tests build each operation's request and assert it
+**Request shapes.** The thirteen tests build each operation's request and assert it
 against the operation definitions in botocore's `service-2.json` for
 bedrock-agent-runtime 2023-07-26 and bedrock-runtime 2023-09-30 — the
 machine-readable source the AWS SDKs are generated from, so required members,
